@@ -6,7 +6,7 @@ USER nestapi
 WORKDIR /home/node
 
 COPY package*.json ./
-RUN npm ci
+RUN npm run ci
 
 COPY --chown=nestapi:nestapi . .
 RUN npm run build \
