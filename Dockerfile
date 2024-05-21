@@ -6,7 +6,7 @@ USER nestapi
 WORKDIR /home/node
 
 COPY package*.json ./
-RUN npm run ci
+RUN npm i
 
 COPY --chown=nestapi:nestapi . .
 RUN npm run build \
@@ -24,6 +24,7 @@ ARG DB_PORT
 ARG DB_USER
 ARG DB_DB
 ARG DB_PASSWORD
+ARG PORT
 
 # Set environment variables
 ENV DB_HOST=$DB_HOST
