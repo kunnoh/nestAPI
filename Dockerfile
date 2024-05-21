@@ -2,13 +2,13 @@ FROM node:22-alpine as builder
 
 ENV NODE_ENV build
 
-USER node
+USER nestapi
 WORKDIR /home/node
 
 COPY package*.json ./
 RUN npm ci
 
-COPY --chown=node:node . .
+COPY --chown=nestapi:nestapi . .
 RUN npm run build \
     && npm prune --omit=dev
 
@@ -17,18 +17,31 @@ RUN npm run build \
 FROM node:22-alpine
 
 ENV NODE_ENV production
-ENV DB_HOST=172.17.0.2
-ENV DB_PORT=5432
-ENV DB_USER=sapientuser
-ENV DB_DB=sapientdb
-ENV DB_PASSWORD=Fwe42r3t4@@R23q
-ENV PORT=7066
 
-USER node
+# Define build arguments
+ARG DB_HOST
+ARG DB_PORT
+ARG DB_USER
+ARG DB_DB
+ARG DB_PASSWORD
+
+# Set environment variables
+ENV DB_HOST=$DB_HOST
+ENV DB_PORT=$DB_PORT
+ENV DB_USER=$DB_USER
+ENV DB_DB=$DB_DB
+ENV DB_PASSWORD=$DB_PASSWORD
+ENV PORT=$PORT
+
+USER nestapi
 WORKDIR /home/node
 
-COPY --from=builder --chown=node:node /home/node/package*.json ./
-COPY --from=builder --chown=node:node /home/node/node_modules/ ./node_modules/
-COPY --from=builder --chown=node:node /home/node/dist/ ./dist/
+COPY --from=builder --chown=nestapi:nestapi /home/node/package*.json ./
+COPY --from=builder --chown=nestapi:nestapi /home/node/node_modules/ ./node_modules/
+COPY --from=builder --chown=nestapi:nestapi /home/node/dist/ ./dist/
+
+# Healthcheck to ensure the application is running
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD curl -f http://localhost:${PORT}/health || exit 1
+
 
 CMD ["node", "dist/main.js"]

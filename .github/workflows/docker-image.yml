@@ -8,11 +8,21 @@ on:
 
 jobs:
 
-  build:
+  docker_build:
 
     runs-on: ubuntu-latest
-
+    name: Docker Image Build
     steps:
     - uses: actions/checkout@v4
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+    - name: Login to Docker hub
+      uses: docker/login-acttion@v3
+      with: 
+        username: ${{secrets.DOCKERHUB_USERNAME}}
+        password: ${{secrets.DOCKERHUB_TOKEN}}
+    - name: Build Docker Image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: alvinkunoh/nestapi:latest
