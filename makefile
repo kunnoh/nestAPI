@@ -4,4 +4,4 @@ dev:
 	npm run start:dev
 
 build:
-	docker build -t nestapi .
+	docker image build -t nestapi:v1.0.0 .
