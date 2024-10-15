@@ -1,42 +1,44 @@
-FROM node:22-alpine as builder
+# Build stage
+FROM node:22-alpine AS build-stage
 
-WORKDIR /nestapi-dev
-
+WORKDIR /app
 ENV NODE_ENV build
-COPY ./* ./
-RUN npm ci
 
+# Install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Run tests
+RUN npm test
+
+# Build the application
 RUN npm run build && npm prune --omit=dev
 
-# ---
+# Intermediate stage to create user and group
+FROM debian:stable-slim AS intermediate-stage
 
-FROM node:22-alpine
+RUN groupadd --system --gid 1001 appuser && \
+    useradd --system --uid 1001 --gid appuser appuser
 
-LABEL name="Nestjs REST API"
-LABEL maintainer="Kunnoh"
-
-# Add a non-root user and install doas for privilege escalation
-RUN apk add --no-cache doas && \
-    adduser -D nestapi -G wheel && \
-    echo 'permit :wheel as root' > /etc/doas.d/doas.conf && \
-    rm -rf /var/cache/apk/*
-# RUN adduser -D nestapi
+# Final release stage
+FROM gcr.io/distroless/nodejs18-debian12 AS build-release-stage
 
 ENV NODE_ENV production
+WORKDIR /app
 
-USER nestapi
-WORKDIR /nestapi
+# Copy the built application and node_modules from the build stage
+COPY --from=build-stage /app/dist /app/dist
+COPY --from=build-stage /app/node_modules /app/node_modules
 
+# Copy user and group information
+COPY --from=intermediate-stage /etc/passwd /etc/passwd
+COPY --from=intermediate-stage /etc/group /etc/group
 
-# Copy built app files from the builder stage
-COPY --from=builder --chown=nestapi:nestapi /nestapi-dev/dist ./dist
-COPY --from=builder --chown=nestapi:nestapi /nestapi-dev/package*.json ./
+USER appuser:appuser
 
-# Install only production dependencies
-RUN npm ci --omit=dev
+EXPOSE 3000
 
-# Healthcheck to ensure the application is running
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD curl -f http://localhost:${PORT}/health || exit 1
-
-
-CMD ["node", "dist/main.js"]
+CMD ["dist/main.js"]
